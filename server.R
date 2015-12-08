@@ -416,7 +416,7 @@ shinyServer(function(input, output, session) {
       updateSelectInput(session, inputId = "Stun", selected = 1)
     }
     
-    if(input$Preset_Teams == "Kingpin: Poke (3 2-Turn CDs Abilies to Finger Poke"){
+    if(input$Preset_Teams == "Kingpin: Poke (3 2-Turn CDs Abilies to Finger Poke)"){
       updateSelectInput(session, inputId = "show_ability_options", selected = c("Active / Passive / AP Cost", "Misc. Tiles"))
       updateSelectInput(session, inputId = "Actives", selected = 6)
       updateSelectInput(session, inputId = "Add_2_Turn_CD_Tile", selected = 3)
