@@ -88,6 +88,7 @@ shinyServer(function(input, output, session) {
     if(length(show_chars) == 0){ return() }
     
     data2 <- melt(c, measure.var = c("L1", "L2", "L3", "L4", "L5", "MAX")) %>%
+      # data2 <- melt(c, measure.var = c("L1.AP", "L2.AP", "L3.AP", "L4.AP", "L5.AP")) %>%
       merge(show_chars, by.y = 1, by.x = "CharacterName") %>%
       filter(Type == "damage" & (Target == "team" | Target == "target")) %>%
       filter(variable != "MAX") %>%
@@ -95,7 +96,7 @@ shinyServer(function(input, output, session) {
     
     if(dim(data2)[1] == 0){ return() }
     
-    ggplot(data2, aes(x = variable, y = value, group = Power, color = Color)) +
+    ggplot(unique(data2), aes(x = variable, y = value, group = Power, color = Color)) +
       geom_line() + 
       #       stat_summary(fun.y = mean, geom = "point", size = 1, aes(group = CharacterName1)) +
       facet_grid(Type + Target ~ Color, scales = "free") + 
@@ -103,8 +104,8 @@ shinyServer(function(input, output, session) {
       geom_text(data = subset(data2, variable == "L5"), 
                 aes(x = variable, y = value, group = Power, 
                     label = paste(Rarity, "* ", CharacterName1, " ", Damage_Range, sep = "")), hjust = 1, vjust = -0.2, size = 3) + 
-      scale_color_manual(values = c("black" = "black", "blue" = "royalblue", "green" = "forestgreen", "purple" = "purple", "red" = "darkred", "yellow" = "goldenrod"),
-                         limits = c("black", "blue", "green", "purple", "red", "yellow")) + 
+      MPQ_color_scale + 
+      scale_y_continuous(limits= c(0, NA)) +
       ylab("Damage") +
       xlab("Level") +
       theme_bw()
@@ -119,19 +120,21 @@ shinyServer(function(input, output, session) {
     if(length(show_chars) == 0){ return() }
     
     data2 <- melt(c, measure.var = c("L1", "L2", "L3", "L4", "L5", "MAX")) %>%
+      
       merge(show_chars, by.y = 1, by.x = "CharacterName") %>%
       filter(Type == "damage" & (Target == "team" | Target == "target")) %>%
       filter(variable == "MAX") %>%
-      filter(!is.na(value) & value > 0)
+      filter(!is.na(value) & value > 0) %>%
+      select(CharacterName3, Damage_Range, Color, Power, Type, Target, Rarity, variable, value)
     
     if(dim(data2)[1] == 0){ return() }
     
-    ggplot(data2, aes(x = variable, y = value, group = Power, color = Color)) +
+    ggplot(unique(data2), aes(x = variable, y = value, group = Power, color = Color)) +
       #geom_point(size = 0.5) +
       facet_grid(Type + Target ~ Color, scales = "free") + 
-      geom_text(aes(label = paste(Rarity, "* ", CharacterName1, " ", Damage_Range, sep = "")), hjust = 0.5, vjust = 0.5, size = 3) + 
-      scale_color_manual(values = c("black" = "black", "blue" = "royalblue", "green" = "forestgreen", "purple" = "purple", "red" = "darkred", "yellow" = "goldenrod"),
-                         limits = c("black", "blue", "green", "purple", "red", "yellow")) + 
+      geom_text(aes(label = paste(Rarity, "* ", CharacterName3, " ", Damage_Range, sep = "")), hjust = 0.5, vjust = 0.5, size = 3) + 
+      MPQ_color_scale + 
+      scale_y_continuous(limits= c(0, NA)) +
       ylab("Damage") +
       xlab("Level") +
       theme_bw()
@@ -153,37 +156,107 @@ shinyServer(function(input, output, session) {
     if(dim(data2)[1] == 0){ return() }
     
     ggplot(data2, aes(x = variable, y = value, group = Power, color = Color)) +
-      #geom_point(size = 0.5) + 
       facet_grid(Type + Target ~ Color, scales = "free") + 
       geom_text(aes(label = paste(Rarity, "* ", CharacterName1, " ", Damage_Range, sep = "")), hjust = 0.5, vjust = 0.5, size = 3) + 
-      scale_color_manual(values = c("black" = "black", "blue" = "royalblue", "green" = "forestgreen", "purple" = "purple", "red" = "darkred", "yellow" = "goldenrod"),
-                         limits = c("black", "blue", "green", "purple", "red", "yellow")) + 
+      MPQ_color_scale + 
+      scale_y_continuous(limits= c(0, NA)) +
       ylab("Damage") +
       xlab("Level") +
       theme_bw()
     
   }, height = 600)
   
-#   #### Graphs ####
-#   # Color wheel
-#   colors <- c('black', 'blue', 'green', 'purple', 'red', 'yellow')
-#   data <- a
-#   show_chars <- unique(unlist(c(data[, 1], data[, 2], data[, 3])))
-#   if(length(show_chars) == 0){ return() }
-#   
-#   data2 <- melt(c, measure.var = c("L1", "L2", "L3", "L4", "L5", "MAX")) %>%
-#     merge(show_chars, by.y = 1, by.x = "CharacterName") %>%
-#     filter(Type != "damage") %>%
-#     filter(variable == "MAX") %>%
-#     filter(!is.na(value) & value > 0)
-#   if(dim(data2)[1] == 0){ return() }
-#   
-#   test <- ddply(data2, "CharacterName", summarize, Colors = paste(Color, collapse = ","))
-#   test <- data2 %>% tbl_df %>% group_by("CharacterName1") %>% summarize(paste(Color, collapse = ","))
-#   
-#     
-#   ggplot()
-#   
+  #   #### Graphs ####
+  # Color wheel
+  output$color_wheel <- renderPlot({
+    if(!is.null(input$select_rarity_color_wheel)){
+      colors <- c('yellow', 'red', 'blue', 'purple', 'green', 'black')
+      data <- table()
+      show_chars <- unique(unlist(c(data[, 1], data[, 2], data[, 3])))
+      if(length(show_chars) == 0){ return() }
+      
+      colors <- c('black', 'blue', 'green', 'purple', 'red', 'yellow')
+      
+      data2 <- melt(c, measure.var = c("L1", "L2", "L3", "L4", "L5", "MAX"))
+      data2 <- merge(data2, as.integer(input$select_rarity_color_wheel), by.y = 1, by.x = "Rarity")
+      
+      data3 <- data2 %>% #filter(Rarity > 1) %>%
+        mutate(CharacterName = str_replace(CharacterName, " \\[.*\\]$", ""),
+               CharacterName1 = str_replace(CharacterName1, " \\[.*\\]$", "")) %>%
+        group_by(CharacterName) %>% 
+        select(Color, Rarity) %>%
+        mutate(Color = paste(intersect(levels(factor(Color)), colors), collapse = ",")) %>%
+        unique()
+      
+      color_wheel <- c("yellow,red,blue", "yellow,red,purple", "yellow,red,green", "yellow,red,black", "yellow,blue,purple", "yellow,blue,green", "yellow,blue,black", "yellow,purple,green", "yellow,purple,black", "yellow,green,black", "purple,green,black", "blue,green,black", "blue,purple,black", "blue,purple,green", "red,green,black", "red,purple,black", "red,purple,green", "red,blue,black", "red,blue,green", "red,blue,purple")
+      new_color_wheel <- color_wheel %>% str_split(",") %>% lapply(function(x){paste(intersect(colors, x), collapse = ',')}) %>% unlist
+      
+      data3[["Color"]] <- factor(data3[["Color"]], levels = new_color_wheel)
+      
+      data4 <- bind_rows(data3, data3, data3)
+      get_color <- function(y){data3[["Color"]] %>% str_split(",") %>% lapply(function(x){x[y]}) %>% unlist}
+      Colors <- c(sapply(1:3, get_color))
+      data5 <- na.omit(cbind(data4, Colors))
+      if(dim(data5)[1] == 0) { return() }
+      data5[["Color"]] <- factor(data5[["Color"]], levels = new_color_wheel)
+      
+      p <- ggplot(data = data5, aes(x = gsub(",", "\n", Color), fill = Colors)) + geom_bar() + coord_polar(theta = 'x'); 
+      q <- p + MPQ_fill_scale +
+        scale_x_discrete(limits = gsub(",", "\n",new_color_wheel)) +
+        scale_y_continuous(breaks=seq(0, 99, 3), labels=seq(0, 99, 3) / 3) +    
+        ylab("Character count") + xlab("Ability Colors") + theme_bw()
+      q
+    }
+  })
+  
+  # Abilities by color
+  ability_color_table <- reactive ({
+    if(is.null(input$select_rarity_color_wheel)){ NULL } else {
+      data <- select(c, Direct_Damage:Manipulate_AP) %>%
+        mutate_each(funs(sapply_string2integer)) %>%
+        bind_cols(select(c, CharacterName, Rarity, Color, AP, PowerName), .)
+      
+      data2 <- merge(data, input$select_rarity_color_wheel, by.x = "Rarity", by.y = 1, all.y = T) %>% tbl_df
+      data3 <- data2 %>% group_by(PowerName) %>% select(Direct_Damage:Manipulate_AP) %>% summarize_each(funs(sum)) %>% group_by(PowerName) %>% mutate_each(funs(as.logical)) %>% mutate_each(funs(as.numeric))
+      data4 <- merge(data3, select(c, CharacterName, Rarity, Color, AP, PowerName)) %>%
+        mutate(CharacterName = str_replace(CharacterName, " \\[.*\\]$", "")) %>% select(CharacterName, Color, x = matches(paste("^", input$ability, "$", sep = ""))) %>% unique
+      data4
+    }
+  })
+  
+  output$ability_effects <- renderPlot ({
+    if(is.null(ability_color_table())){ return() }
+    if(input$ability == 0){ return() }
+    
+    if(input$count_frequency == "Count"){
+      data4 <- ability_color_table()
+      ggplot(data4, aes(x = factor(x), fill = Color)) + geom_bar() + facet_grid(.~Color) +
+        MPQ_fill_scale + theme_bw() +
+        xlab(label = str_replace_all(input$ability, "_", " ")) +
+        ylab("Abilities (count)") +
+        scale_x_discrete(breaks = c(1,0), labels = c("yes", "no"))
+      
+    } else if(input$count_frequency == "Frequency"){
+      data4 <- ability_color_table()
+      data5 <- data4 %>% select(Color, x) %>% group_by(Color, add = F) %>% 
+        summarize(p.null = sum(data4$x)/dim(data4)[1],
+                  p.value = binom.test(sum(x), length(x), sum(data4$x)/dim(data4)[1])$p.value,
+                  conf.u = binom.test(sum(x), length(x), sum(data4$x)/dim(data4)[1])[[4]][1],
+                  conf.l = binom.test(sum(x), length(x), sum(data4$x)/dim(data4)[1])[[4]][2],
+                  frequency = binom.test(sum(x), length(x), sum(data4$x)/dim(data4)[1])[[5]]) %>% 
+        unique %>% group_by(Color, add = F) %>% mutate(p.value_star = if(p.value < 0.00001){"****"} else if (p.value < 0.0001){"***"} else if(p.value < 0.001){"**"} else if (p.value < 0.05) {"*"} else {""})
+      
+      ggplot(data5, aes(x = Color, y = frequency, fill = Color)) + geom_hline(yintercept = unique(data5$p.null), linetype = "longdash") +
+        geom_bar(stat = "identity") + #facet_grid(.~Color) +
+        MPQ_fill_scale + theme_bw() +
+        xlab(label = str_replace_all(input$ability, "_", " ")) +
+        ylab("Abilities (frequency)") +
+        ylim(0,1) + 
+        geom_text(aes(x = Color, y = frequency, label = p.value_star), vjust = 0.5, size = 10) +
+        geom_errorbar(aes(x = Color, ymin = conf.u, ymax = conf.l), color = "darkgray", alpha = 0.5, width = 0.25)
+    }
+  })
+  
   #### Functions ####
   #### Reset options function ####
   observeEvent(input$reset_input, {
@@ -281,29 +354,32 @@ shinyServer(function(input, output, session) {
   
   #### Preset Team Selections ####
   preset_team_selections <- function(){
-    if(input$Preset_Teams == 0){
-      
-    }
-    if(input$Preset_Teams == "3* / 4* Rarity - 6 Actives & 3 (or more) Passives"){
+    #     if(input$Preset_Teams == 0){}
+    if(input$Preset_Teams == "3* / 4* Rarity Rainbow(+): 6 Actives & 3 (or more) Passives"){
+      updateSelectInput(session, inputId = "show_ability_options", selected = c("Active / Passive / AP Cost"))
       updateSelectInput(session, inputId = "radio", selected = "Exclude:")
       updateSelectInput(session, inputId = 'select_rarity', selected = c("3","4"))
       updateSelectInput(session, inputId = "Actives", selected = 6)
       updateSelectInput(session, inputId = "Passives", selected = 3)
     }
-    if(input$Preset_Teams == "2* / 3* Rarity - 6 Actives & 3 (or more) Passives"){
+    
+    if(input$Preset_Teams == "2* / 3* Rarity Rainbow(+): 6 Actives & 3 (or more) Passives"){
       updateSelectInput(session, inputId = "radio", selected = "Exclude:")
+      updateSelectInput(session, inputId = "show_ability_options", selected = c("Active / Passive / AP Cost"))
       updateSelectInput(session, inputId = 'select_rarity', selected = c("2","3"))
       updateSelectInput(session, inputId = "Actives", selected = 6)
       updateSelectInput(session, inputId = "Passives", selected = 3)
     }
+    
     if(input$Preset_Teams == "Stunning!: 3 Stun Abilities in 3 different colors (or from passives)"){
       updateSelectInput(session, inputId = "radio", selected = "Exclude:")
-      updateSelectInput(session, inputId = 'select_rarity', selected = c("3","4"))
+      updateSelectInput(session, inputId = "show_ability_options", selected = c("Effects"))
       updateSelectInput(session, inputId = "Stun", selected = 3)
+      updateSelectInput(session, inputId = 'select_rarity', selected = c("3","4"))
     }
-      
+    
     if(input$Preset_Teams == "X-Force: Shred the Board (6 Active Colors & 5 Board Shake Abilities)"){
-      
+      updateSelectInput(session, inputId = "show_ability_options", selected = c("Active / Passive / AP Cost", "Effects"))
       updateSelectInput(session, inputId = "Actives", selected = 6)
       updateSelectInput(session, inputId = "Shake", selected = 5)
       updateSelectInput(session, inputId = "radio", selected = "Select (up to 3):")
@@ -316,7 +392,7 @@ shinyServer(function(input, output, session) {
     }
     
     if(input$Preset_Teams == "Kamala Khan: Heal and Deal (6 Active Colors & 3 Fast & Damaging Abilities)"){
-
+      updateSelectInput(session, inputId = "show_ability_options", selected = c("Active / Passive / AP Cost", "Damage"))
       updateSelectInput(session, inputId = "Actives", selected = 6)
       updateSelectInput(session, inputId = "Cheap", selected = 3)
       updateSelectInput(session, inputId = "Possible_Damage", selected = 3)
@@ -329,8 +405,8 @@ shinyServer(function(input, output, session) {
       updateSelectInput(session, inputId = 'select_1chars', selected = "")
     }
     
-    if(input$Preset_Teams == "Anti-Kishu/Thug (1 Stun and 1 Special Tile Remove, Steal, Improve, and Protect)"){
-      
+    if(input$Preset_Teams == "Anti-Kishu/Thug: (1 Stun and 1 Special Tile Remove, Steal, Improve, and Protect Abilities)"){
+      updateSelectInput(session, inputId = "show_ability_options", selected = c("Active / Passive / AP Cost", "Special Tiles", "Effects"))
       updateSelectInput(session, inputId = 'select_rarity', selected = "3")
       updateSelectInput(session, inputId = "Actives", selected = 6)
       updateSelectInput(session, inputId = "Remove_Special_Tile", selected = 1)
@@ -340,8 +416,8 @@ shinyServer(function(input, output, session) {
       updateSelectInput(session, inputId = "Stun", selected = 1)
     }
     
-    if(input$Preset_Teams == "Kingpin: Poke (3 2-Turn CDs Abilies to Finger Poke)"){
-      
+    if(input$Preset_Teams == "Kingpin: Poke (3 2-Turn CDs Abilies to Finger Poke"){
+      updateSelectInput(session, inputId = "show_ability_options", selected = c("Active / Passive / AP Cost", "Misc. Tiles"))
       updateSelectInput(session, inputId = "Actives", selected = 6)
       updateSelectInput(session, inputId = "Add_2_Turn_CD_Tile", selected = 3)
       updateSelectInput(session, inputId = 'select_rarity', selected = c("3","4"))
@@ -351,30 +427,32 @@ shinyServer(function(input, output, session) {
       updateSelectInput(session, inputId = 'select_3chars', selected = "")
       updateSelectInput(session, inputId = 'select_2chars', selected = "")
       updateSelectInput(session, inputId = 'select_1chars', selected = "")
-      
     }
     
-    if(input$Preset_Teams == "Carnage: Stayin' Alive (5 Actives & 2 Healing Abilities)"){
+    if(input$Preset_Teams == "Carnage: Stayin' Alive (5 Active Colors & 2 Healing Abilities)"){
       updateSelectInput(session, inputId = 'select_rarity', selected = c("4","3"))
+      updateSelectInput(session, inputId = "show_ability_options", selected = c("Active / Passive / AP Cost", "Effects"))
+      updateSelectInput(session, inputId = "Actives", selected = 5)
+      updateSelectInput(session, inputId = "Passives", selected = 2)
       updateSelectInput(session, inputId = "Healing", selected = 2)
       updateSelectInput(session, inputId = "radio", selected = "Select (up to 3):")
       updateSelectInput(session, inputId = 'select_4chars', selected = "Carnage (Cletus Kasady)")
-      
     }
     
-    if(input$Preset_Teams == "Venom: Infinite Damage (6 Actives & 2 Web Tile Actives)"){
+    if(input$Preset_Teams == "Venom: Infinite Damage (6 Active Colors & 2 Web Tile Abilities)"){
+      updateSelectInput(session, inputId = "show_ability_options", selected = c("Misc. Tiles"))
       updateSelectInput(session, inputId = 'select_rarity', selected = c("3","1"))
       updateSelectInput(session, inputId = "Add_Web_Tile", selected = 2)
       updateSelectInput(session, inputId = "radio", selected = "Select (up to 3):")
       updateSelectInput(session, inputId = 'select_1chars', selected = "Venom (Dark Avengers Spider-Man)")
-      
     }
+    
     if(input$Preset_Teams == "SKIP!"){
       updateSelectInput(session, inputId = 'select_rarity', selected = c("5"))
       updateSelectInput(session, inputId = "radio", selected = "Exclude:")
     }
+    
     if(input$Preset_Teams == "Deadpool! (You can't play these teams!)"){
-
       updateSelectInput(session, inputId = 'select_rarity', selected = c("3","4"))
       updateSelectInput(session, inputId = "radio", selected = "Select (up to 3):")
       updateSelectInput(session, inputId = 'Unlocked_Characters', selected = F)
