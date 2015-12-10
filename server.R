@@ -35,7 +35,14 @@ shinyServer(function(input, output, session) {
   output$compendium <- renderDataTable(arrange(c, desc(Rarity), CharacterName))
   
   #### Team Selection Table ####
-  output$mytable1 <- renderDataTable({ select(table(), Char1:Char3, Actives, Passives, "CombinedHP" = CombinedHP)
+  selected.options <- reactive({
+  options <- a %>% select(Direct_Damage:Passives) %>% names
+  options.used <- sapply(options, function(x){if(!is.null(input[[x]]) && input[[x]] != 0) { x }}) %>% unlist
+  c("Char1", "Char2", "Char3", "Actives", "Passives", "CombinedHP", lapply(options.used, as.symbol))
+  })
+   
+#   output$mytable1 <- renderDataTable({ select(table(), Char1:Char3, Actives, Passives, "CombinedHP" = CombinedHP)
+  output$mytable1 <- renderDataTable({ table() %>% select_(.dots = selected.options())
   }, options = list(lengthMenu = c(10, 20, 40), pageLength = 20))
   
   #### Reactive data filtering by character selection ####
@@ -52,6 +59,8 @@ shinyServer(function(input, output, session) {
     }
   })
   
+  
+  #### Observe ####
   # Preset filters
   observe({
     preset_team_selections()
@@ -77,10 +86,10 @@ shinyServer(function(input, output, session) {
       
     }
   })
+  #### Observe ####
   
   #### Plots ####
-  # Power Plots
-  ## Damage Curves
+  #### Damage Curves ####
   output$ggPlot1 <- renderPlot({
     data <- table()
     
@@ -108,11 +117,11 @@ shinyServer(function(input, output, session) {
       scale_y_continuous(limits= c(0, NA)) +
       ylab("Damage") +
       xlab("Level") +
-      theme_bw()
+      theme_bw() + theme(legend.position="none")
     
   }, height = 600)
   
-  # Max Damage
+  #### Max Damage ####
   output$ggPlot2 <- renderPlot({
     
     data <- table()
@@ -137,20 +146,23 @@ shinyServer(function(input, output, session) {
       scale_y_continuous(limits= c(0, NA)) +
       ylab("Damage") +
       xlab("Level") +
-      theme_bw()
+      theme_bw() + theme(legend.position="none")
     
   }, height = 600)
   
-  # Max Abilities
+  #### Max Abilities ####
   output$ggPlot3 <- renderPlot({
     
     data <- table()
     show_chars <- unique(unlist(c(data[, 1], data[, 2], data[, 3])))
     if(length(show_chars) == 0){ return() }
     
-    data2 <- melt(c, measure.var = c("L1", "L2", "L3", "L4", "L5", "MAX")) %>%
+    if(is.null(input$ability_effects_options)) {return()}
+    data <- merge(c, input$ability_effects_options, by.y = 1, by.x = "Type")
+#       data2 <- melt(c, measure.var = c("L1", "L2", "L3", "L4", "L5", "MAX")) %>%
+data2 <- melt(data, measure.var = c("L1", "L2", "L3", "L4", "L5", "MAX")) %>%
       merge(show_chars, by.y = 1, by.x = "CharacterName") %>%
-      filter(Type != "damage") %>%
+#       filter(Type != "damage") %>%
       filter(variable == "MAX") %>%
       filter(!is.na(value) & value > 0)
     if(dim(data2)[1] == 0){ return() }
@@ -158,15 +170,15 @@ shinyServer(function(input, output, session) {
     ggplot(data2, aes(x = variable, y = value, group = Power, color = Color)) +
       facet_grid(Type + Target ~ Color, scales = "free") + 
       geom_text(aes(label = paste(Rarity, "* ", CharacterName1, " ", Damage_Range, sep = "")), hjust = 0.5, vjust = 0.5, size = 3) + 
-      MPQ_color_scale + 
+      MPQ_color_scale +
       scale_y_continuous(limits= c(0, NA)) +
-      ylab("Damage") +
+      ylab("Amount") +
       xlab("Level") +
-      theme_bw()
+      theme_bw() + theme(legend.position="none")
     
   }, height = 600)
   
-  #   #### Graphs ####
+  #### Visualizations ####
   # Color wheel
   output$color_wheel <- renderPlot({
     if(!is.null(input$select_rarity_color_wheel)){
@@ -219,10 +231,12 @@ shinyServer(function(input, output, session) {
       data2 <- merge(data, input$select_rarity_color_wheel, by.x = "Rarity", by.y = 1, all.y = T) %>% tbl_df
       data3 <- data2 %>% group_by(PowerName) %>% select(Direct_Damage:Manipulate_AP) %>% summarize_each(funs(sum)) %>% group_by(PowerName) %>% mutate_each(funs(as.logical)) %>% mutate_each(funs(as.numeric))
       data4 <- merge(data3, select(c, CharacterName, Rarity, Color, AP, PowerName)) %>%
-        mutate(CharacterName = str_replace(CharacterName, " \\[.*\\]$", "")) %>% select(CharacterName, Color, x = matches(paste("^", input$ability, "$", sep = ""))) %>% unique
-      data4
+        mutate(CharacterName = str_replace(CharacterName, " \\[.*\\]$", "")) %>% select(CharacterName, PowerName, Rarity, Color, x = matches(paste("^", input$ability, "$", sep = ""))) %>% unique
+      data4 %>% arrange(desc(Color))
     }
   })
+  
+  output$ability_color_table <- renderDataTable(if(!is.null(ability_color_table())) { ability_color_table() %>% filter(x == 1) %>% select(-x) %>% arrange(Color, CharacterName)} else {return()} )
   
   output$ability_effects <- renderPlot ({
     if(is.null(ability_color_table())){ return() }
@@ -231,9 +245,10 @@ shinyServer(function(input, output, session) {
     if(input$count_frequency == "Count"){
       data4 <- ability_color_table()
       ggplot(data4, aes(x = factor(x), fill = Color)) + geom_bar() + facet_grid(.~Color) +
-        MPQ_fill_scale + theme_bw() +
+        MPQ_fill_scale + 
+        theme_bw() + theme(legend.position="none") +
         xlab(label = str_replace_all(input$ability, "_", " ")) +
-        ylab("Abilities (count)") +
+        ylab("Abilities (count)") + 
         scale_x_discrete(breaks = c(1,0), labels = c("yes", "no"))
       
     } else if(input$count_frequency == "Frequency"){
@@ -248,12 +263,13 @@ shinyServer(function(input, output, session) {
       
       ggplot(data5, aes(x = Color, y = frequency, fill = Color)) + geom_hline(yintercept = unique(data5$p.null), linetype = "longdash") +
         geom_bar(stat = "identity") + #facet_grid(.~Color) +
-        MPQ_fill_scale + theme_bw() +
+        MPQ_fill_scale + 
+        geom_text(aes(x = Color, y = frequency, label = p.value_star), vjust = 0.5, size = 10) +
         xlab(label = str_replace_all(input$ability, "_", " ")) +
         ylab("Abilities (frequency)") +
         ylim(0,1) + 
-        geom_text(aes(x = Color, y = frequency, label = p.value_star), vjust = 0.5, size = 10) +
-        geom_errorbar(aes(x = Color, ymin = conf.u, ymax = conf.l), color = "darkgray", alpha = 0.5, width = 0.25)
+        geom_errorbar(aes(x = Color, ymin = conf.u, ymax = conf.l), color = "darkgray", alpha = 0.5, width = 0.25) +
+        theme_bw() + theme(legend.position="none")
     }
   })
   
@@ -271,36 +287,30 @@ shinyServer(function(input, output, session) {
       # Playable Teams
       if(input$Unlocked_Characters == T){ data <- filter(data, Unlocked_Characters == 3) }
       
-      # Health Filter
+      #### Health Filter ####
       data <- filter(data, (MaxHP.Char3 >= input$MaxHP[1] & MaxHP.Char3 <= input$MaxHP[2]) & (MaxHP.Char1 >= input$MaxHP[1] & MaxHP.Char1 <= input$MaxHP[2]) & (MaxHP.Char2 >= input$MaxHP[1] & MaxHP.Char2 <= input$MaxHP[2]))
       data <- filter(data, CombinedHP >= input$CombinedHP[1] & CombinedHP <= input$CombinedHP[2])
       
-      # Option Filter Function
+      #### Option Filter Function ####
       filterOption <- function(data, option){
         if (!is.null(input[[option]]) && input[[option]] != 0){ data <- data[data[[option]] >= as.integer(input[[option]]),] }
         data
       }
       
       #### Options ####
-      options <- c("Actives", "Passives", "Cheap", 
-                   "Offensive", "Possible_Damage", "Direct_Damage", "Team_Damage",
-                   "Defensive", "Stun", "Shake", "Healing",
-                   "Manipulate_AP", "Steal_AP", "Gain_AP", "Destroy_AP",
-                   "Add_Special_Tile", "Remove_Special_Tile", "Improve_Special_Tile", "Steal_Special_Tile",
-                   "Convert_Tile_Color", "Add_CD_Tile", "Add_2_Turn_CD_Tile", "Add_Trap_Tile",
-                   "Add_Strike_Tile", "Add_Attack_Tile", "Add_Protect_Tile", "Add_Charged_Tile", 
-                   "Add_Critical_Tile", "Add_Locked_Tile", "Add_Invis_Tile", "Add_Web_Tile")
+      options <- data %>% select(Direct_Damage:Passives) %>% names
       
       for (i in 1:length(options)){
         data <- filterOption(data, options[i])
       }
       
-      if(!is.null(data)){ data <- arrange(data, desc(Actives), desc(Passives), desc(CombinedHP)) }
-      data
+if(!is.null(data)){ data <- arrange(data, desc(Actives), desc(Passives), desc(CombinedHP)) }
+data
+
     }
   }
   
-  # Rarity menu filter
+  #### Rarity menu filter ####
   rarity_filter <- function(data){
     unchecked <- setdiff(allRarity, input$select_rarity)
     if(length(unchecked) == 0 ){ data } else {
@@ -311,7 +321,7 @@ shinyServer(function(input, output, session) {
     data
   }
   
-  # Include character filter
+  #### Include character filter ####
   include_chars_filter <- function(data){
     include_chars <- c(input$include_1chars, input$include_2chars, input$include_3chars, input$include_4chars, input$include_5chars)
     unchecked <- setdiff(allChars, include_chars)
@@ -351,10 +361,12 @@ shinyServer(function(input, output, session) {
     }
   }
   
-  
   #### Preset Team Selections ####
+  onclick("Preset_Teams", shinyjs::reset("options-reset"))
+  onclick("Preset_Teams", shinyjs::reset("sidebar-reset"), add = T)
+  
   preset_team_selections <- function(){
-    #     if(input$Preset_Teams == 0){}
+    
     if(input$Preset_Teams == "3* / 4* Rarity Rainbow(+): 6 Actives & 3 (or more) Passives"){
       updateSelectInput(session, inputId = "show_ability_options", selected = c("Active / Passive / AP Cost"))
       updateSelectInput(session, inputId = "radio", selected = "Exclude:")

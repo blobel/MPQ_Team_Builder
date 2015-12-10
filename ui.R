@@ -1,3 +1,5 @@
+#### MPQ Team Builder v2 ####
+
 blank <- 0; names(blank) = "------ Preset Teams ------"
 ability_effect_choices <- c(blank, names(select(a, Direct_Damage:Manipulate_AP))); names(ability_effect_choices) <- str_replace_all(ability_effect_choices, "_", " ")
 ability_filter_choices <- c("Active / Passive / AP Cost", "Damage", "Effects", "AP", "Special Tiles", "Misc. Tiles", "Tile Color Conversion")
@@ -16,11 +18,11 @@ tablePullDownTab <-  function(table, inputId = names(table)[1], label = str_repl
   )}
 
 #### Rarity Panel function ####
-Rarity_Panel <- function(inputId = 'select_rarity', inline = T){checkboxGroupInput(inputId = inputId,
+Rarity_Panel <- function(inputId = 'select_rarity', inline = T, selected = c(2,3)){checkboxGroupInput(inputId = inputId,
                                                                                    inline = inline,
                                                                                    label = 'Rarity:',
                                                                                    choices = rev(allRarity),
-                                                                                   selected = c(4,3)
+                                                                                   selected = selected
 )}
 
 #### Main Panel function ####
@@ -29,48 +31,57 @@ Main_Panel <-  fluidPage(
             tabsetPanel(
               tabPanel(title = 'Team', dataTableOutput(outputId = 'mytable1')),
               tabPanel(title = 'Damage Curves', plotOutput(outputId = "ggPlot1")),
-              tabPanel(title = 'Max Damage', plotOutput(outputId = "ggPlot2")),
-              tabPanel(title = 'Max Abilities', plotOutput(outputId = "ggPlot3"))
-            )
+              tabPanel(title = 'Max Damage', 
+                       plotOutput(outputId = "ggPlot2")),
+              tabPanel(title = 'Max Abilities', 
+                       wellPanel(fluidRow(checkboxGroupInput(inline = T, 
+                                                   inputId="ability_effects_options", 
+                                                   label=NULL, 
+                                                   choices = levels(factor(c$Type)),
+                                                   selected=c("protect", "strike", "attack", "heal"))
+                       )),
+                       plotOutput(outputId = "ggPlot3")
+            ))
+))
+#### Option Panel ####
+Top_Panel <- fluidPage(
+  
+  #### Download button ####
+  wellPanel(style = "padding: 5px;",
+            fluidRow(column(width = 12, downloadButton(outputId = 'downloadTeamBuilder_csv', label = 'Download "Team_Builds.csv"')))
+  ),
+  
+  #### Preset Teams ####
+  fluidRow(
+    column(width = 2, actionButton(inputId = "reset_input", label = "Reset Settings")),
+    column(width = 10, 
+           selectInput(inputId = "Preset_Teams", label = NULL, width = "100%",
+                       choices = c(blank,
+                                   "--- Rainbow Teams with 3 (or more) Passive Abilities ---",
+                                   "3* / 4* Rarity Rainbow(+): 6 Actives & 3 (or more) Passives",
+                                   "2* / 3* Rarity Rainbow(+): 6 Actives & 3 (or more) Passives",
+                                   "--- Ability Effect Teams ---",
+                                   "Stunning!: 3 Stun Abilities in 3 different colors (or from passives)",
+                                   "Anti-Kishu/Thug: (1 Stun and 1 Special Tile Remove, Steal, Improve, and Protect Abilities)",
+                                   "--- Required Character Teams ---",
+                                   "Venom: Infinite Damage (6 Active Colors & 2 Web Tile Abilities)",
+                                   "Carnage: Stayin' Alive (5 Active Colors & 2 Healing Abilities)",
+                                   "X-Force: Shred the Board (6 Active Colors & 5 Board Shake Abilities)",
+                                   "Kamala Khan: Heal and Deal (6 Active Colors & 3 Fast & Damaging Abilities)",
+                                   "Kingpin: Poke (3 2-Turn CDs Abilies to Finger Poke)",
+                                   "Deadpool! (You can't play these teams!)",
+                                   "--- Other ---",
+                                   "SKIP!"
+                       ),
+                       selected = 0)
+    )
   )
 )
-
-#### Option Panel ####
 
 Option_Panel <- fluidPage(shinyjs::useShinyjs(), style = "padding: 5px;",
                           id = "options-reset",
                           
-                          #### Download button ####
-                          wellPanel(style = "padding: 5px;",
-                                    fluidRow(column(width = 12, downloadButton(outputId = 'downloadTeamBuilder_csv', label = 'Download "Team_Builds.csv"')))
-                          ),
-                          
-                          #### Preset Teams ####
-                          fluidRow(
-                            column(width = 2, actionButton(inputId = "reset_input", label = "Reset Settings")),
-                            column(width = 10, 
-                                   selectInput(inputId = "Preset_Teams", label = NULL, width = "100%",
-                                               choices = c(blank,
-                                                           "--- Rainbow Teams with 3 (or more) Passive Abilities ---",
-                                                           "3* / 4* Rarity Rainbow(+): 6 Actives & 3 (or more) Passives",
-                                                           "2* / 3* Rarity Rainbow(+): 6 Actives & 3 (or more) Passives",
-                                                           "--- Ability Effect Teams ---",
-                                                           "Stunning!: 3 Stun Abilities in 3 different colors (or from passives)",
-                                                           "Anti-Kishu/Thug: (1 Stun and 1 Special Tile Remove, Steal, Improve, and Protect Abilities)",
-                                                           "--- Required Character Teams ---",
-                                                           "Venom: Infinite Damage (6 Active Colors & 2 Web Tile Abilities)",
-                                                           "Carnage: Stayin' Alive (5 Active Colors & 2 Healing Abilities)",
-                                                           "X-Force: Shred the Board (6 Active Colors & 5 Board Shake Abilities)",
-                                                           "Kamala Khan: Heal and Deal (6 Active Colors & 3 Fast & Damaging Abilities)",
-                                                           "Kingpin: Poke (3 2-Turn CDs Abilies to Finger Poke)",
-                                                           "Deadpool! (You can't play these teams!)",
-                                                           "--- Other ---",
-                                                           "SKIP!"
-                                               ),
-                                               selected = 0)
-                            )
-                          ),
-                          helpText("Filter teams below using the Ability and Character filters. Try the Preset Teams (above) to get ideas!"),
+                          helpText("Filter teams (below) using the Ability and Character filters. Try the Preset Teams (above) to get ideas!"),
                           
                           #### Options Panel Show/Hide ####
                           
@@ -174,7 +185,7 @@ Option_Panel <- fluidPage(shinyjs::useShinyjs(), style = "padding: 5px;",
                                                      )
                                            )
                           ),
-                          helpText("Ability filters select teams with AT LEAST that many non-redundant Abilities (Active Colors + Passives Abilities). For example, a team with 3 Stun will have AT LEAST 3 Stun Abilites in 3 different colors (or passives). The best teams have 6 Active Colors and multiple Passive Abilities."),
+                          helpText("Ability filters select teams with AT LEAST that many non-redundant Abilities (Active Colors + Passives Abilities). For example, a team with 3 Stun will have AT LEAST 3 Stun Abilites (different Active Colors + Passive Abilities)."),
                           helpText("Choose 'Select (up to 3):' to build a team based around one or two specific characters (e.g. Featured or Boosted characters).")
 )
 
@@ -296,11 +307,11 @@ shinyUI(
   fluidPage(
     titlePanel("MPQ Team Builder"),
     navbarPage(title = 'Apps',
-               tabPanel(title = 'Team Builder', Option_Panel, Health_Panel, Sidebar_Panel),
+               tabPanel(title = 'Team Builder', Top_Panel, Option_Panel, Health_Panel, Sidebar_Panel),
                tabPanel(title = 'Visualizations (Under Construction)',
                         fluidRow(
                         column(width = 4,
-                               Rarity_Panel('select_rarity_color_wheel', inline = T)
+                               Rarity_Panel('select_rarity_color_wheel', inline = T, selected = 1:5)
                         ),
                         column(width = 8,
                                conditionalPanel(condition = "input.visualization_tab == 'Ability Effects'",
@@ -313,7 +324,7 @@ shinyUI(
                                                    p("TBD")
                                       ),
                                       mainPanel(width = 10,
-                                                tabsetPanel(id = "visualization_tab",
+                                                tabsetPanel(id = "visualization_tab", selected = 'Ability Effects',
                                                   tabPanel(title = 'Color Wheel',
                                                            helpText("The Color Wheel illustrates each three color combination opposite of its complement. The more even the wheel, the more 6 Active Color Teams that can be constructed."),
                                                            helpText("Note: 1* Characters with less than 3 abilities are not shown"),
@@ -322,7 +333,7 @@ shinyUI(
                                                   tabPanel(title = 'Ability Effects',
                                                            fluidRow(column(10, radioButtons(inline = T, inputId="count_frequency", label=NULL, choices=list("Count", "Frequency"), selected="Frequency"))),
                                                            plotOutput(outputId = "ability_effects", height = 400),
-                                                           renderDataTable(output$ability_color_table)
+                                                           dataTableOutput(outputId = "ability_color_table")
                                                   )
                                                 )
                                       )
