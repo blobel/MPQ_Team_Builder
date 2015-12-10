@@ -229,7 +229,7 @@ data2 <- melt(data, measure.var = c("L1", "L2", "L3", "L4", "L5", "MAX")) %>%
         bind_cols(select(c, CharacterName, Rarity, Color, AP, PowerName), .)
       
       data2 <- merge(data, input$select_rarity_color_wheel, by.x = "Rarity", by.y = 1, all.y = T) %>% tbl_df
-      data3 <- data2 %>% group_by(PowerName) %>% select(Direct_Damage:Manipulate_AP) %>% summarize_each(funs(sum)) %>% group_by(PowerName) %>% mutate_each(funs(as.logical)) %>% mutate_each(funs(as.numeric))
+      data3 <- data2 %>% group_by(PowerName, Rarity) %>% select(Direct_Damage:Manipulate_AP) %>% summarize_each(funs(sum)) %>% group_by(PowerName, Rarity) %>% mutate_each(funs(as.logical)) %>% mutate_each(funs(as.numeric))
       data4 <- merge(data3, select(c, CharacterName, Rarity, Color, AP, PowerName)) %>%
         mutate(CharacterName = str_replace(CharacterName, " \\[.*\\]$", "")) %>% select(CharacterName, PowerName, Rarity, Color, x = matches(paste("^", input$ability, "$", sep = ""))) %>% unique
       data4 %>% arrange(desc(Color))
